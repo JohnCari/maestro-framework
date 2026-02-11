@@ -15,16 +15,16 @@ Maestro uses two Claude Code parallelism features:
    PHASE 1: CREATE        PHASE 2: CRITIQUE       PHASE 3: PERFECT
 ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐
 │  /maestro.artist   │  │  /maestro.critic   │  │  /maestro.virtuoso │
-│                    │  │                    │  │   (ralph-loop)     │
-│  queue/ → team     │  │  1. run tests      │  │                    │
-│    ANALYZE         │  │  2. spawn 2:       │  │  ORIENT            │
-│    PLAN            │  │     conflict ck.   │  │  ASSESS (3)        │
-│    IMPLEMENT       │  │     quality sweep  │  │  SELECT            │
-│    TEST            │  │       security     │  │  IMPLEMENT         │
-│                    │  │       quality      │  │  VALIDATE          │
-│  1 worker/feature  │  │       perf         │  │  COMMIT            │
-│  all in parallel   │  │  3. validate       │  │  UPDATE PLAN       │
-│  workers talk ↔    │  │  self-heals (3x)   │  │  ↻ loops           │
+│                    │  │   (ralph-loop)     │  │   (ralph-loop)     │
+│  queue/ → team     │  │                    │  │                    │
+│    ANALYZE         │  │  1. run tests      │  │  ORIENT            │
+│    PLAN            │  │  2. spawn 2:       │  │  ASSESS (3)        │
+│    IMPLEMENT       │  │     conflict ck.   │  │  SELECT            │
+│    TEST            │  │     quality sweep  │  │  IMPLEMENT         │
+│                    │  │       security     │  │  VALIDATE          │
+│  1 worker/feature  │  │       quality      │  │  COMMIT            │
+│  all in parallel   │  │       perf         │  │  UPDATE PLAN       │
+│  workers talk ↔    │  │  3. validate       │  │  ↻ loops           │
 └────────────────────┘  └────────────────────┘  └────────────────────┘
 
 Agent teams: orchestrator ↔ workers, reviewer team, assess/impl teams
@@ -47,8 +47,9 @@ Subagents:   within workers for parallel research & implementation
 # 4. Build (autonomous — walk away)
 /maestro.artist
 
-# 5. Review (interactive — cross-feature quality)
-/maestro.critic
+# 5. Review (autonomous — cross-feature quality)
+claude --dangerously-skip-permissions
+/ralph-loop "/maestro.critic" --completion-promise "ALL_TESTS_PASS"
 
 # 6. Refine (perpetual — runs for hours/days)
 claude --dangerously-skip-permissions
@@ -72,7 +73,7 @@ If tests fail, the orchestrator spawns a fresh worker with clean context (up to 
 
 ### Phase 2 — Critic
 
-`/maestro.critic` reads `CLAUDE.md` for project standards, runs the **full test suite** first to establish a clean baseline (this is the first time all features are validated together), then spawns a `reviewer` **agent team** with 2 teammates:
+`/maestro.critic` runs inside a Ralph Loop for fresh-context retries. Each iteration reads `CLAUDE.md` for project standards, runs the **full test suite** to establish a clean baseline (this is the first time all features are validated together), then spawns a `reviewer` **agent team** with 2 teammates:
 
 - **conflict-checker** — finds and fixes cross-feature conflicts:
   - Duplicate routes or API endpoints
@@ -86,7 +87,7 @@ If tests fail, the orchestrator spawns a fresh worker with clean context (up to 
   - **Code quality** — bugs, dead code, unused imports, inconsistent error handling
   - **Performance** — N+1 queries, unnecessary re-renders, missing indexes, large imports
 
-Both teammates fix issues they find. Final validation re-runs all tests. Self-healing: if validation fails, the entire team is recreated — up to 3 total attempts.
+Both teammates fix issues they find. Final validation re-runs all tests. If validation fails, the iteration exits and the Ralph Loop restarts with fresh context — fixes from the previous iteration persist in the codebase.
 
 ### Phase 3 — Virtuoso
 
@@ -112,7 +113,7 @@ Both teammates fix issues they find. Final validation re-runs all tests. Self-he
    ```json
    { "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
    ```
-3. [Ralph Loop plugin](https://marketplace.anthropic.com) (for Phase 3)
+3. [Ralph Loop plugin](https://marketplace.anthropic.com) (for Phases 2 & 3)
 4. Install:
    ```bash
    git clone https://github.com/JohnCari/maestro-framework.git maestro

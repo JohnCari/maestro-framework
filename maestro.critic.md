@@ -44,9 +44,16 @@ Run the reviewer: a comprehensive pass across the entire project using 3 agents 
 
 6. **Clean up the team** when done.
 
-### Self-Healing
+### Fresh-Context Retries
 
-If the final validation (step 4) fails, repeat from step 2: create a new agent team and run another pass. Maximum 3 total attempts. If still failing after 3 attempts, report the remaining failures and output `TESTS_FAILED`.
+Run the critic inside a Ralph Loop for automatic fresh-context retries:
+
+```bash
+claude --dangerously-skip-permissions
+/ralph-loop "/maestro.critic" --completion-promise "ALL_TESTS_PASS"
+```
+
+Each iteration gets a fresh context window. If validation fails, exit with `TESTS_FAILED` — the Ralph Loop will restart with clean context, re-read the codebase (including any fixes from the previous iteration), and try again.
 
 ### Notes
 

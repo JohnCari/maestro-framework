@@ -1,4 +1,4 @@
-# Maestro
+# Maestro-Framework
 
 > Agentic coding orchestrator — turns a feature queue into tested, reviewed, continuously improving code
 

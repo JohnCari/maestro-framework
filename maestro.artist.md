@@ -1,6 +1,6 @@
 ---
 description: "Maestro Artist — parallel feature builder using agent teams (Phase 1)"
-argument-hint: "[max-test-retries]"
+argument-hint: "[max-retries]"
 ---
 
 ## User Input
@@ -9,7 +9,7 @@ argument-hint: "[max-test-retries]"
 $ARGUMENTS
 ```
 
-If a number is provided, use it as `MAX_TEST_RETRIES`. Default is **3**.
+If a number is provided, use it as `MAX_RETRIES`. Default is **3**.
 
 ---
 
@@ -29,7 +29,7 @@ Output:
 
 ```
 Features: <count>
-Retries:  <MAX_TEST_RETRIES>
+Retries:  <MAX_RETRIES>
 ```
 
 ### 2. Create the Team
@@ -61,7 +61,7 @@ Spawn **all workers simultaneously** — one per feature using the `Task` tool:
 - `team_name`: `"maestro-build"`
 - `name`: `"worker-<NNN>"` (matching the feature number)
 - `mode`: `"bypassPermissions"`
-- `prompt`: the **Worker Prompt** below, with `{COMBINED_FEATURE}`, `{MAX_TEST_RETRIES}`, and `{TEAM_ROSTER}` substituted
+- `prompt`: the **Worker Prompt** below, with `{COMBINED_FEATURE}` and `{TEAM_ROSTER}` substituted
 
 `TaskUpdate` each task → `in_progress`.
 
@@ -76,7 +76,7 @@ Spawned <count> workers in parallel
 Wait for all workers to finish. As each worker completes, check output for `ALL_TESTS_PASS` or `TESTS_FAILED`.
 
 - **If passed**: `TaskUpdate` → `completed`. Record PASS.
-- **If failed**: shut down the worker, spawn a fresh retry worker with the same prompt. Wait for retry. Record final result regardless. `TaskUpdate` → `completed` with result noted.
+- **If failed**: shut down the failed worker. Spawn a **fresh worker** with clean context and the same prompt — the new worker sees the code already written and can fix + retest. Retry up to `MAX_RETRIES` times per feature (each retry = fresh worker = fresh context, like a Ralph Loop). Record final result. `TaskUpdate` → `completed` with result noted.
 
 ### 5. Summary
 
@@ -103,7 +103,7 @@ Shut down all teammates, then `TeamDelete`.
 
 ## Worker Prompt
 
-This is the exact prompt to send to each worker teammate. Substitute `{COMBINED_FEATURE}`, `{MAX_TEST_RETRIES}`, and `{TEAM_ROSTER}` before sending.
+This is the exact prompt to send to each worker teammate. Substitute `{COMBINED_FEATURE}` and `{TEAM_ROSTER}` before sending.
 
 ---
 
@@ -155,6 +155,6 @@ If you need to create or modify a shared interface (types, API contracts, shared
 
 Run only the tests related to **your feature** — unit tests and feature-level integration tests you wrote. Do NOT run the full test suite (other workers are building in parallel; their incomplete code will cause false failures). The full cross-feature test suite runs later in `/maestro.critic`.
 
-Loop up to **{MAX_TEST_RETRIES}** attempts: if any test fails, fix the implementation only (don't modify tests) and re-run. Output `ALL_TESTS_PASS` when your feature's tests pass or `TESTS_FAILED` if stuck.
+Run tests once. If all pass, output `ALL_TESTS_PASS`. If any fail, output `TESTS_FAILED` with a summary of failures. Do not retry — the orchestrator will spawn a fresh worker with clean context if needed.
 
 Report `ALL_TESTS_PASS` or `TESTS_FAILED` when done.

@@ -20,12 +20,12 @@ Maestro uses two Claude Code parallelism features:
 │    ANALYZE         │  │  2. spawn 2:       │  │  ORIENT            │
 │    PLAN            │  │     conflict ck.   │  │  ASSESS (3)        │
 │    IMPLEMENT       │  │     quality sweep  │  │  SELECT            │
-│    TEST (3x)       │  │       security     │  │  IMPLEMENT         │
+│    TEST            │  │       security     │  │  IMPLEMENT         │
 │                    │  │       quality      │  │  VALIDATE          │
 │  1 worker/feature  │  │       perf         │  │  COMMIT            │
 │  all in parallel   │  │  3. validate       │  │  UPDATE PLAN       │
-└────────────────────┘  │  self-heals (3x)   │  │  ↻ loops           │
-                        └────────────────────┘  └────────────────────┘
+│  workers talk ↔    │  │  self-heals (3x)   │  │  ↻ loops           │
+└────────────────────┘  └────────────────────┘  └────────────────────┘
 
 Agent teams: orchestrator ↔ workers, reviewer team, assess/impl teams
 Subagents:   within workers for parallel research & implementation
@@ -66,13 +66,13 @@ Each worker runs 4 phases natively, using **subagents** for parallel research an
 1. **ANALYZE** — reads `CLAUDE.md` for project standards and available tools, uses `Explore` subagents to research the codebase, reviews the team roster for potential overlaps
 2. **PLAN** — designs the implementation approach using parallel `Explore` subagents, then broadcasts file ownership and coordinates shared interfaces with relevant teammates
 3. **IMPLEMENT** — builds the feature with parallel `general-purpose` subagents, each owning separate files. Messages teammates before creating shared interfaces. TDD: tests first, then implementation
-4. **TEST** — runs feature-scoped tests only (not the full suite — other workers are mid-build), retries up to 3 times (configurable), fixes implementation only
+4. **TEST** — runs feature-scoped tests once (not the full suite — other workers are mid-build)
 
-If a feature fails after retries, a fresh worker is spawned for one more attempt.
+If tests fail, the orchestrator spawns a fresh worker with clean context (up to 3 retries, configurable). Each retry sees the code already written and can fix + retest — same fresh-context philosophy as the virtuoso's Ralph Loop.
 
 ### Phase 2 — Critic
 
-`/maestro.critic` reads `CLAUDE.md` for project standards, runs the full test suite first to establish a clean baseline, then spawns a `reviewer` **agent team** with 2 teammates:
+`/maestro.critic` reads `CLAUDE.md` for project standards, runs the **full test suite** first to establish a clean baseline (this is the first time all features are validated together), then spawns a `reviewer` **agent team** with 2 teammates:
 
 - **conflict-checker** — finds and fixes cross-feature conflicts:
   - Duplicate routes or API endpoints

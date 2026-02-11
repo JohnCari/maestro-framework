@@ -23,7 +23,7 @@ Maestro uses two Claude Code parallelism features:
 │    TEST (3x)       │  │       security     │  │  IMPLEMENT         │
 │                    │  │       quality      │  │  VALIDATE          │
 │  1 worker/feature  │  │       perf         │  │  COMMIT            │
-│  sequential        │  │  3. validate       │  │  UPDATE PLAN       │
+│  all in parallel   │  │  3. validate       │  │  UPDATE PLAN       │
 └────────────────────┘  │  self-heals (3x)   │  │  ↻ loops           │
                         └────────────────────┘  └────────────────────┘
 
@@ -59,7 +59,7 @@ claude --dangerously-skip-permissions
 
 ### Phase 1 — Artist
 
-`/maestro.artist` reads `queue/*.md` files in order, creates a `maestro-build` **agent team**, and spawns one worker per feature. `masterplan.md` is prepended to every feature for shared context.
+`/maestro.artist` reads `queue/*.md` files, creates a `maestro-build` **agent team**, and spawns all workers in parallel — one per feature. `masterplan.md` is prepended to every feature for shared context.
 
 Each worker runs 4 phases natively, using **subagents** for parallel research and implementation:
 

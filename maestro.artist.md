@@ -1,5 +1,5 @@
 ---
-description: "Maestro Artist — sequential feature queue processor using agent teams (Phase 1)"
+description: "Maestro Artist — parallel feature queue processor using agent teams (Phase 1)"
 argument-hint: "[max-test-retries]"
 ---
 
@@ -41,33 +41,35 @@ For each feature, `TaskCreate`:
 - Description: feature content
 - ActiveForm: `Building <filename>`
 
-### 3. Process Features (Sequential)
+### 3. Spawn All Workers (Parallel)
 
-For each feature in order:
+For each feature, build `COMBINED_FEATURE`:
+- If `MASTER_PLAN` exists: `MASTER_PLAN + "\n\n---\n\n" + FEATURE_CONTENT`
+- Otherwise: `FEATURE_CONTENT`
 
-1. `TaskUpdate` → `in_progress`. Output `[current/total] <feature-name>`.
+Spawn **all workers simultaneously** — one per feature using the `Task` tool:
+- `subagent_type`: `"general-purpose"`
+- `team_name`: `"maestro-build"`
+- `name`: `"worker-<NNN>"` (matching the feature number)
+- `mode`: `"bypassPermissions"`
+- `prompt`: the **Worker Prompt** below, with `{COMBINED_FEATURE}` and `{MAX_TEST_RETRIES}` substituted
 
-2. Build `COMBINED_FEATURE`:
-   - If `MASTER_PLAN` exists: `MASTER_PLAN + "\n\n---\n\n" + FEATURE_CONTENT`
-   - Otherwise: `FEATURE_CONTENT`
+`TaskUpdate` each task → `in_progress`.
 
-3. Spawn a worker using `Task` tool:
-   - `subagent_type`: `"general-purpose"`
-   - `team_name`: `"maestro-build"`
-   - `name`: `"worker-<NNN>"`
-   - `mode`: `"bypassPermissions"`
-   - `prompt`: the **Worker Prompt** below, with `{COMBINED_FEATURE}` and `{MAX_TEST_RETRIES}` substituted
+Output:
 
-4. Wait for the worker to finish. Check output for `ALL_TESTS_PASS` or `TESTS_FAILED`.
+```
+Spawned <count> workers in parallel
+```
 
-5. **If failed**: shut down the worker, spawn a fresh retry worker with the same prompt. Record final result regardless.
+### 4. Monitor and Collect Results
 
-6. **If passed**: record PASS.
+Wait for all workers to finish. As each worker completes, check output for `ALL_TESTS_PASS` or `TESTS_FAILED`.
 
-7. Shut down the worker. `TaskUpdate` → `completed` (PASS) or note failure (FAIL).
-8. Output result: `  PASS` or `  FAIL`
+- **If passed**: `TaskUpdate` → `completed`. Record PASS.
+- **If failed**: shut down the worker, spawn a fresh retry worker with the same prompt. Wait for retry. Record final result regardless. `TaskUpdate` → `completed` with result noted.
 
-### 4. Summary
+### 5. Summary
 
 ```
 ---------------------------------------------
@@ -84,7 +86,7 @@ If all passed, output: `ORCHESTRATOR_ALL_FEATURES_DONE`
 If any failed: `FAILED  N/M features`
 
 
-### 5. Clean Up
+### 6. Clean Up
 
 Shut down all teammates, then `TeamDelete`.
 

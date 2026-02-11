@@ -6,28 +6,36 @@ Drop feature files in `queue/`, run `/maestro.artist`, walk away.
 
 ## Architecture
 
+Maestro uses two Claude Code parallelism features:
+
+- **[Agent teams](https://code.claude.com/docs/en/agent-teams)** — separate Claude Code instances that coordinate via shared task lists and messaging. Used for orchestrator↔worker coordination (artist), reviewer teams (critic), and assess/impl teams (virtuoso).
+- **[Subagents](https://code.claude.com/docs/en/sub-agents)** — lightweight helpers that run within a single session and report results back. Used within workers for parallel codebase research (`Explore`) and parallel implementation (`general-purpose`).
+
 ```
    PHASE 1: CREATE        PHASE 2: CRITIQUE       PHASE 3: PERFECT
 ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐
 │  /maestro.artist   │  │  /maestro.critic   │  │  /maestro.virtuoso │
 │                    │  │                    │  │   (ralph-loop)     │
 │  queue/ → team     │  │  1. run tests      │  │                    │
-│    SPECIFY         │  │  2. spawn 2:       │  │  ORIENT            │
+│    ANALYZE         │  │  2. spawn 2:       │  │  ORIENT            │
 │    PLAN            │  │     conflict ck.   │  │  ASSESS (3)        │
-│    TASKS           │  │     quality sweep  │  │  SELECT            │
-│    IMPLEMENT       │  │       security     │  │  IMPLEMENT         │
-│    TEST (3x)       │  │       quality      │  │  VALIDATE          │
-│                    │  │       perf         │  │  COMMIT            │
-│  1 worker/feature  │  │  3. validate       │  │  UPDATE PLAN       │
-│  sequential        │  │  self-heals (3x)   │  │  ↻ loops           │
-└────────────────────┘  └────────────────────┘  └────────────────────┘
+│    IMPLEMENT       │  │     quality sweep  │  │  SELECT            │
+│    TEST (3x)       │  │       security     │  │  IMPLEMENT         │
+│                    │  │       quality      │  │  VALIDATE          │
+│  1 worker/feature  │  │       perf         │  │  COMMIT            │
+│  sequential        │  │  3. validate       │  │  UPDATE PLAN       │
+└────────────────────┘  │  self-heals (3x)   │  │  ↻ loops           │
+                        └────────────────────┘  └────────────────────┘
+
+Agent teams: orchestrator ↔ workers, reviewer team, assess/impl teams
+Subagents:   within workers for parallel research & implementation
 ```
 
 ## Quick Start
 
 ```bash
-# 1. Set up your project constitution (principles, quality gates)
-/speckit.constitution
+# 1. Set up CLAUDE.md with project principles, build/test commands, quality standards,
+#    and any MCP servers, plugins, or skills available to the project
 
 # 2. In Claude Code plan mode, create your plan and save as masterplan.md
 #    Save to queue/masterplan.md
@@ -51,21 +59,20 @@ claude --dangerously-skip-permissions
 
 ### Phase 1 — Artist
 
-`/maestro.artist` reads `queue/*.md` files in order, creates a `maestro-build` agent team, and spawns one worker per feature. `masterplan.md` is prepended to every feature for shared context.
+`/maestro.artist` reads `queue/*.md` files in order, creates a `maestro-build` **agent team**, and spawns one worker per feature. `masterplan.md` is prepended to every feature for shared context.
 
-Each worker runs 5 Spec Kit phases sequentially:
+Each worker runs 4 phases natively, using **subagents** for parallel research and implementation:
 
-1. **SPECIFY** — `speckit.specify` generates a full feature spec
-2. **PLAN** — `speckit.plan` with parallel research subagents (API/data, architecture, testing)
-3. **TASKS** — `speckit.tasks` produces dependency-ordered tasks
-4. **IMPLEMENT** — `speckit.implement` with parallel subagents, each owning separate files
-5. **TEST** — runs all tests, retries up to 3 times (configurable), fixes implementation only
+1. **ANALYZE** — reads `CLAUDE.md` for project standards and available tools, then uses `Explore` subagents to research the codebase — what exists, what can be reused, what needs to be built
+2. **PLAN** — designs the implementation approach using parallel `Explore` subagents (API/data, architecture, testing)
+3. **IMPLEMENT** — builds the feature with parallel `general-purpose` subagents, each owning separate files. TDD: tests first, then implementation
+4. **TEST** — runs all tests, retries up to 3 times (configurable), fixes implementation only
 
-Workers use Context7 MCP for accurate library docs. If a feature fails after retries, a fresh worker is spawned for one more attempt.
+If a feature fails after retries, a fresh worker is spawned for one more attempt.
 
 ### Phase 2 — Critic
 
-`/maestro.critic` runs the full test suite first to establish a clean baseline, then spawns a `reviewer` agent team with 2 teammates:
+`/maestro.critic` reads `CLAUDE.md` for project standards, runs the full test suite first to establish a clean baseline, then spawns a `reviewer` **agent team** with 2 teammates:
 
 - **conflict-checker** — finds and fixes cross-feature conflicts:
   - Duplicate routes or API endpoints
@@ -87,11 +94,11 @@ Both teammates fix issues they find. Final validation re-runs all tests. Self-he
 
 | Phase | What it does |
 |---|---|
-| **ORIENT** | Reads constitution, CLAUDE.md, IMPROVEMENT_PLAN.md, speckit artifacts, git history, codebase |
-| **ASSESS** | Spawns 3 read-only agents: code-analyst, test-analyst, quality-analyst. Constitution violations are auto-Critical |
+| **ORIENT** | Reads CLAUDE.md, AGENTS.md, IMPROVEMENT_PLAN.md, git history. Uses `Explore` **subagents** to study the codebase |
+| **ASSESS** | Spawns an **agent team** with 3 read-only analysts: code, test, quality. CLAUDE.md violations are auto-Critical |
 | **SELECT** | Picks highest-priority parallel batch (up to 3-4 tasks) from the plan |
-| **IMPLEMENT** | Agent team with file-ownership boundaries — no overlap between teammates |
-| **VALIDATE** | Single-agent backpressure: full test suite, typecheck, lint, constitution gates. Up to 3 self-healing attempts |
+| **IMPLEMENT** | **Agent team** with file-ownership boundaries — no overlap between teammates |
+| **VALIDATE** | Single-agent backpressure: full test suite, typecheck, lint, CLAUDE.md gates. Up to 3 self-healing attempts |
 | **COMMIT** | One commit per logical change with clear "why" messages |
 | **UPDATE PLAN** | Marks tasks done, adds newly discovered improvements |
 | **EXIT** | Outputs `ALL_IMPROVEMENTS_COMPLETE` only when genuinely done, otherwise loops |
@@ -100,22 +107,21 @@ Both teammates fix issues they find. Final validation re-runs all tests. Self-he
 
 ## Setup
 
-1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (native install)
-2. [Spec Kit](https://github.com/github/spec-kit#installation)
-3. [Context7 MCP](https://github.com/upstash/context7#claude-code)
-4. [Ralph Loop plugin](https://marketplace.anthropic.com) (for Phase 3)
-5. `/frontend-design` skill from [Anthropic Marketplace](https://marketplace.anthropic.com)
-6. Enable agent teams in `~/.claude/settings.json`:
+1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (native install) — includes built-in [subagents](https://code.claude.com/docs/en/sub-agents) (`Explore`, `general-purpose`, `Plan`) with no additional setup
+2. Enable [agent teams](https://code.claude.com/docs/en/agent-teams) (experimental) in `~/.claude/settings.json`:
    ```json
    { "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
    ```
-7. Install:
+3. [Ralph Loop plugin](https://marketplace.anthropic.com) (for Phase 3)
+4. Install:
    ```bash
    git clone https://github.com/JohnCari/maestro-framework.git maestro
    cp maestro/maestro.artist.md .claude/commands/maestro.artist.md
    cp maestro/maestro.critic.md .claude/commands/maestro.critic.md
    cp maestro/maestro.virtuoso.md .claude/commands/maestro.virtuoso.md
    ```
+
+Any MCP servers, plugins, or skills should be configured in your project's `CLAUDE.md` — maestro will discover and use them automatically.
 
 ## License
 

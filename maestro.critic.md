@@ -14,11 +14,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Run the reviewer: a comprehensive pass across the entire project using 3 agents — the lead runs tests, then spawns 2 teammates working in parallel. This is designed to run in an interactive Claude Code session after all features have been implemented by Maestro.
 
-When using any library or framework, use Context7 MCP to get accurate docs: 1) mcp__context7__resolve-library-id with library name. 2) mcp__context7__query-docs with the ID and your specific question.
-
 ### Steps
 
-1. **Run all tests first.** Before spawning the team, run the full test suite. If tests fail, fix the implementation (never modify tests) and re-run until they pass. This gives the teammates a clean baseline.
+1. **Read `CLAUDE.md`** for project standards, build/test commands, quality requirements, and any available MCP servers, plugins, or skills. Then **run all tests.** Before spawning the team, run the full test suite. If tests fail, fix the implementation (never modify tests) and re-run until they pass. This gives the teammates a clean baseline.
 
 2. **Create an agent team** named `reviewer` with 2 teammates:
 

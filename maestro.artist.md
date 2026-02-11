@@ -153,6 +153,8 @@ If you need to create or modify a shared interface (types, API contracts, shared
 
 **PHASE 4: TEST**
 
-Run the full test suite. Loop up to **{MAX_TEST_RETRIES}** attempts: if any test fails, fix the implementation only (don't modify tests) and re-run. Output `ALL_TESTS_PASS` when all tests pass or `TESTS_FAILED` if stuck.
+Run only the tests related to **your feature** — unit tests and feature-level integration tests you wrote. Do NOT run the full test suite (other workers are building in parallel; their incomplete code will cause false failures). The full cross-feature test suite runs later in `/maestro.critic`.
+
+Loop up to **{MAX_TEST_RETRIES}** attempts: if any test fails, fix the implementation only (don't modify tests) and re-run. Output `ALL_TESTS_PASS` when your feature's tests pass or `TESTS_FAILED` if stuck.
 
 Report `ALL_TESTS_PASS` or `TESTS_FAILED` when done.

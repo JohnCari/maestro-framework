@@ -59,13 +59,13 @@ claude --dangerously-skip-permissions
 
 ### Phase 1 — Artist
 
-`/maestro.artist` reads `queue/*.md` files, creates a `maestro-build` **agent team**, and spawns all workers in parallel — one per feature. `masterplan.md` is prepended to every feature for shared context.
+`/maestro.artist` reads `queue/*.md` files, creates a `maestro-build` **agent team**, and spawns all workers in parallel — one per feature. Workers communicate with each other via `SendMessage` to coordinate on shared interfaces, announce file ownership, and avoid conflicts. `masterplan.md` is prepended to every feature for shared context.
 
-Each worker runs 4 phases natively, using **subagents** for parallel research and implementation:
+Each worker runs 4 phases natively, using **subagents** for parallel research and **teammate messaging** for cross-feature coordination:
 
-1. **ANALYZE** — reads `CLAUDE.md` for project standards and available tools, then uses `Explore` subagents to research the codebase — what exists, what can be reused, what needs to be built
-2. **PLAN** — designs the implementation approach using parallel `Explore` subagents (API/data, architecture, testing)
-3. **IMPLEMENT** — builds the feature with parallel `general-purpose` subagents, each owning separate files. TDD: tests first, then implementation
+1. **ANALYZE** — reads `CLAUDE.md` for project standards and available tools, uses `Explore` subagents to research the codebase, reviews the team roster for potential overlaps
+2. **PLAN** — designs the implementation approach using parallel `Explore` subagents, then broadcasts file ownership and coordinates shared interfaces with relevant teammates
+3. **IMPLEMENT** — builds the feature with parallel `general-purpose` subagents, each owning separate files. Messages teammates before creating shared interfaces. TDD: tests first, then implementation
 4. **TEST** — runs all tests, retries up to 3 times (configurable), fixes implementation only
 
 If a feature fails after retries, a fresh worker is spawned for one more attempt.

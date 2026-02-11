@@ -1,5 +1,5 @@
 ---
-description: "Maestro Artist — parallel feature queue processor using agent teams (Phase 1)"
+description: "Maestro Artist — parallel feature builder using agent teams (Phase 1)"
 argument-hint: "[max-test-retries]"
 ---
 
@@ -47,12 +47,21 @@ For each feature, build `COMBINED_FEATURE`:
 - If `MASTER_PLAN` exists: `MASTER_PLAN + "\n\n---\n\n" + FEATURE_CONTENT`
 - Otherwise: `FEATURE_CONTENT`
 
+Build a `TEAM_ROSTER` — a plain-text list of all workers and their assigned features:
+
+```
+Team roster:
+  worker-001 → 001-auth.md
+  worker-002 → 002-dashboard.md
+  worker-003 → 003-settings.md
+```
+
 Spawn **all workers simultaneously** — one per feature using the `Task` tool:
 - `subagent_type`: `"general-purpose"`
 - `team_name`: `"maestro-build"`
 - `name`: `"worker-<NNN>"` (matching the feature number)
 - `mode`: `"bypassPermissions"`
-- `prompt`: the **Worker Prompt** below, with `{COMBINED_FEATURE}` and `{MAX_TEST_RETRIES}` substituted
+- `prompt`: the **Worker Prompt** below, with `{COMBINED_FEATURE}`, `{MAX_TEST_RETRIES}`, and `{TEAM_ROSTER}` substituted
 
 `TaskUpdate` each task → `in_progress`.
 
@@ -94,11 +103,29 @@ Shut down all teammates, then `TeamDelete`.
 
 ## Worker Prompt
 
-This is the exact prompt to send to each worker teammate. Substitute `{COMBINED_FEATURE}` and `{MAX_TEST_RETRIES}` before sending.
+This is the exact prompt to send to each worker teammate. Substitute `{COMBINED_FEATURE}`, `{MAX_TEST_RETRIES}`, and `{TEAM_ROSTER}` before sending.
 
 ---
 
-You are a Maestro build worker. Execute these 4 phases **sequentially**. Do not skip phases. Do not proceed until the current phase completes.
+You are a Maestro build worker — one of several teammates building features **in parallel**. You can message other workers directly using `SendMessage` to coordinate.
+
+**YOUR TEAM**
+
+{TEAM_ROSTER}
+
+Read `~/.claude/teams/maestro-build/config.json` to discover teammate names for messaging. Use `SendMessage` with `type: "message"` and the teammate's name as `recipient`.
+
+**WHEN TO COMMUNICATE**
+
+- **Announce file ownership** — after planning (Phase 2), broadcast which files you will modify so teammates can avoid conflicts.
+- **Coordinate shared interfaces** — if your feature creates or consumes APIs, types, data models, or shared utilities that other features might use, message the relevant teammate(s) to align on contracts before implementing.
+- **Share discoveries** — if you find an existing utility, pattern, or gotcha that another feature likely needs, message that teammate.
+- **Respond to teammates** — if a teammate messages you about a shared interface or conflict, respond and adjust your plan as needed.
+- **Don't over-communicate** — only message when it prevents a conflict or shares something genuinely useful. Don't broadcast status updates.
+
+---
+
+Execute these 4 phases **sequentially**. Do not skip phases. Do not proceed until the current phase completes.
 
 **PHASE 1: ANALYZE**
 
@@ -110,13 +137,19 @@ Then read and internalize the feature description:
 
 Use the Task tool with `subagent_type: "Explore"` to research the existing codebase — find relevant files, existing patterns, APIs, data models, and utilities that can be reused. Identify: what needs to be built, what already exists, what files will be affected, and what tests are needed. Include comprehensive tests following Test Driven Development.
 
+Review the team roster to understand what other features are being built in parallel. Note potential overlaps or shared dependencies.
+
 **PHASE 2: PLAN**
 
 Based on your analysis, design the implementation approach. Use the Task tool with `subagent_type: "Explore"` to run up to 3 parallel research subagents if needed: one for API and data layer research, one for architecture patterns and dependencies, one for testing strategy. Synthesize all findings into a clear plan: file-by-file changes, dependency order, and risk areas.
 
+After planning, **broadcast your file list** to all teammates so they know which files you own. If you see shared dependencies with another feature (e.g. you both need the same API route, data model, or utility), **message that teammate directly** to agree on the contract before implementing.
+
 **PHASE 3: IMPLEMENT**
 
 Implement the feature following your plan. Use subagents (`subagent_type: "general-purpose"`) to work in parallel on independent files — each subagent owns a different set of files to avoid conflicts. Write tests first (TDD), then implementation.
+
+If you need to create or modify a shared interface (types, API contracts, shared modules), message affected teammates first and agree on the shape before writing code.
 
 **PHASE 4: TEST**
 

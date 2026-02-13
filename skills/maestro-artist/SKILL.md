@@ -19,13 +19,22 @@ If a number is provided, use it as `MAX_RETRIES`. Default is **3**.
 
 You are the orchestrator. You coordinate only — never implement directly.
 
+### 0. Read Project Standards
+
+Read `CLAUDE.md` (if it exists) for project standards, build/test commands, coding conventions, and any available MCP servers, plugins, or skills. This context informs how you configure workers and what commands to use.
+
 ### 1. Read the Queue
 
-1. Glob `maestro-framework/queue/*.md`. Exclude `masterplan.md`.
+1. Glob `queue/*.md`. Exclude `masterplan.md`.
 2. Sort remaining files by filename (numbered: `001-step.md`, `002-step.md`, …).
-3. If empty, error: `"No feature .md files in maestro-framework/queue/"` and stop.
-4. Read `maestro-framework/queue/masterplan.md` if it exists → `MASTER_PLAN`.
+3. If empty, error: `"No feature .md files in queue/"` and stop.
+4. Read `queue/masterplan.md` if it exists → `MASTER_PLAN`.
 5. Read each feature file → `FEATURE_CONTENT`.
+6. Check each feature for a `depends-on:` line (e.g. `depends-on: 001`). Sort features into dependency tiers:
+   - **Tier 0**: Features with no `depends-on:` — spawn immediately in parallel
+   - **Tier 1**: Features that depend on Tier 0 — spawn after their dependencies complete
+   - **Tier N**: Features that depend on Tier N-1 — spawn after their dependencies complete
+   - If no features have `depends-on:`, all are Tier 0 (current behavior preserved)
 
 Output:
 
@@ -58,7 +67,7 @@ Team roster:
   worker-003 → 003-settings.md
 ```
 
-Spawn **all workers simultaneously** — one per feature using the `Task` tool:
+Spawn workers by dependency tier — all features within a tier launch simultaneously. Wait for a tier to complete before spawning the next tier. For each feature, use the `Task` tool:
 - `subagent_type`: `"general-purpose"`
 - `team_name`: `"maestro-build"`
 - `name`: `"worker-<NNN>"` (matching the feature number)
@@ -127,7 +136,7 @@ Read `~/.claude/teams/maestro-build/config.json` to discover teammate names for 
 
 ---
 
-Execute these 4 phases **sequentially**. Do not skip phases. Do not proceed until the current phase completes.
+Execute these 5 phases **sequentially**. Do not skip phases. Do not proceed until the current phase completes.
 
 **PHASE 1: ANALYZE**
 
@@ -157,6 +166,18 @@ If you need to create or modify a shared interface (types, API contracts, shared
 
 Run only the tests related to **your feature** — unit tests and feature-level integration tests you wrote. Do NOT run the full test suite (other workers are building in parallel; their incomplete code will cause false failures). The full cross-feature test suite runs later in `/maestro-critic`.
 
-Run tests once. If all pass, output `ALL_TESTS_PASS`. If any fail, output `TESTS_FAILED` with a summary of failures. Do not retry — the orchestrator will spawn a fresh worker with clean context if needed.
+Run tests once. If any fail, output `TESTS_FAILED` with a summary of failures. Do not retry — the orchestrator will spawn a fresh worker with clean context if needed.
+
+**PHASE 5: COMMIT**
+
+If all tests passed, stage and commit your changes before reporting success. This ensures your work survives session crashes.
+
+```
+maestro-artist: Built <feature-name>
+
+Implemented <brief description of what was built>.
+```
+
+After committing, output `ALL_TESTS_PASS`. If tests failed, skip this phase and output `TESTS_FAILED`.
 
 Report `ALL_TESTS_PASS` or `TESTS_FAILED` when done.

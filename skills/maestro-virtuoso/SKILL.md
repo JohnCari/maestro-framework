@@ -46,8 +46,6 @@ Study the project thoroughly before doing anything. "Study" means read, understa
 
 7. **Study the codebase** — use subagents (Task tool with `subagent_type: "Explore"`) to scan `src/`, `tests/`, config files, and any other relevant directories. Understand existing code patterns, what features exist, and how they're structured. Don't assume something isn't implemented; search first.
 
-8. **Study git history** — run `git log --oneline -30` to understand recent work and the project's trajectory.
-
 ---
 
 ### Phase 2: ASSESS (first iteration only, or when IMPROVEMENT_PLAN.md doesn't exist)

@@ -14,11 +14,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-Run the reviewer: a comprehensive pass across the entire project using 3 agents — the lead runs tests, then spawns 2 teammates working in parallel. This is designed to run in an interactive Claude Code session after all features have been implemented by Maestro.
+Run the reviewer: a comprehensive pass across the entire project — you (the lead) run tests, then spawn an agent team with 2 teammates working in parallel. This is designed to run in an interactive Claude Code session after all features have been implemented by Maestro.
 
 ### Steps
 
-1. **Read `CLAUDE.md`** for project standards, build/test commands, quality requirements, and any available MCP servers, plugins, or skills. Then **run all tests.** Before spawning the team, run the full test suite. If tests fail, fix the implementation (never modify tests) and re-run until they pass. This gives the teammates a clean baseline.
+1. **Read `CLAUDE.md`** for project standards, build/test commands, quality requirements, and any available MCP servers, plugins, or skills. **Read `queue/masterplan.md` and `queue/*.md` feature files** (excluding `masterplan.md`) to understand what each feature is supposed to do — pass this context to teammates so they can distinguish bugs from intentional design choices. Then **run all tests.** Before spawning the team, run the full test suite. If tests fail, fix the implementation (never modify tests) and re-run until they pass. This gives the teammates a clean baseline.
 
 2. **Create an agent team** named `reviewer` with 2 teammates:
 
@@ -40,11 +40,19 @@ Run the reviewer: a comprehensive pass across the entire project using 3 agents 
 
 4. **Validate**: Run the full test suite one final time to ensure no fixes broke anything.
 
-5. **Result**:
+5. **Commit**: If all tests pass, stage and commit all changes:
+   ```
+   maestro-critic: resolve cross-feature conflicts and quality issues
+
+   <Brief summary of what was fixed by each teammate.>
+   ```
+   This gives traceability in git history and crash safety for ralph-loop restarts.
+
+6. **Result**:
    - If all tests pass and all checks are resolved: output `<promise>ALL_TESTS_PASS</promise>`
    - If issues remain: output `TESTS_FAILED` with a summary of remaining issues
 
-6. **Clean up the team** when done.
+7. **Clean up the team** when done.
 
 ### Fresh-Context Retries
 

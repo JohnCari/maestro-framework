@@ -11,40 +11,40 @@ Drop feature files in `queue/`, run `/maestro-artist`, walk away.
 Maestro runs three phases sequentially. Each phase uses [agent teams](https://code.claude.com/docs/en/agent-teams) for parallel coordination and [subagents](https://code.claude.com/docs/en/sub-agents) for parallel research and implementation within a single session.
 
 ```
-                        ┌─────────────────────────────────────────────────────────────────────┐
-                        │                      MAESTRO  PIPELINE                              │
-                        └─────────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+  │                                       MAESTRO PIPELINE                                       │
+  └──────────────────────────────────────────────────────────────────────────────────────────────┘
 
-  ┌─ PHASE 1 ─────────────────┐   ┌─ PHASE 2 ─────────────────┐   ┌─ PHASE 3 ─────────────────┐
+  ┌─ PHASE 1 ──────────────────┐   ┌─ PHASE 2 ──────────────────┐   ┌─ PHASE 3 ──────────────────┐
   │                            │   │                            │   │                            │
-  │   /maestro-artist          │   │   /maestro-critic          │   │   /maestro-virtuoso        │
-  │   CREATE                   │   │   CRITIQUE                 │   │   PERFECT                  │
+  │  /maestro-artist           │   │  /maestro-critic           │   │  /maestro-virtuoso         │
+  │  CREATE                    │   │  CRITIQUE                  │   │  PERFECT                   │
   │                            │   │                            │   │                            │
-  │   queue/*.md               │   │   run full test suite      │   │   ORIENT ── study project  │
-  │       │                    │   │       │                    │   │   ASSESS ── 3 analysts     │
-  │       ▼                    │   │       ▼                    │   │   SELECT ── pick batch     │
-  │   ┌─────────┐             │   │   ┌─────────┐             │   │   IMPLEMENT ── agent team  │
-  │   │  team:  │             │   │   │  team:  │             │   │   VALIDATE ── backpressure │
-  │   │  build  │             │   │   │ reviewer│             │   │   COMMIT                   │
-  │   └────┬────┘             │   │   └────┬────┘             │   │   UPDATE PLAN              │
-  │        │                   │   │        │                   │   │   EXIT ── loop or done     │
-  │   ┌────┼────┐             │   │   ┌────┴────┐             │   │                            │
-  │   ▼    ▼    ▼             │   │   ▼         ▼             │   │   shared state:            │
-  │  w-1  w-2  w-3            │   │  conflict  quality        │   │   IMPROVEMENT_PLAN.md      │
-  │   │    │    │             │   │  checker   sweep          │   │                            │
-  │   ▼    ▼    ▼             │   │              │            │   │   ↻ ralph-loop             │
-  │  ANALYZE                   │   │         sec / qual / perf │   │     fresh context each     │
-  │  PLAN ──── coordinate      │   │              │            │   │     iteration               │
-  │  IMPLEMENT ── TDD          │   │       validate + commit   │   │                            │
-  │  TEST                      │   │              │            │   │                            │
-  │  COMMIT                    │   │   ↻ ralph-loop            │   │                            │
+  │  queue/*.md                │   │  run full test suite       │   │  ORIENT ── study project   │
+  │      │                     │   │      │                     │   │  ASSESS ── 3 analysts      │
+  │      ▼                     │   │      ▼                     │   │  SELECT ── pick batch      │
+  │  ┌─────────┐               │   │  ┌─────────┐               │   │  IMPLEMENT ── agent team   │
+  │  │  team:  │               │   │  │  team:  │               │   │  VALIDATE ── backpressure  │
+  │  │  build  │               │   │  │ reviewer│               │   │  COMMIT                    │
+  │  └────┬────┘               │   │  └────┬────┘               │   │  UPDATE PLAN               │
+  │       │                    │   │       │                    │   │  EXIT ── loop or done      │
+  │  ┌────┼────┐               │   │  ┌────┴────┐               │   │                            │
+  │  ▼    ▼    ▼               │   │  ▼         ▼               │   │  shared state:             │
+  │ w-1  w-2  w-3              │   │ conflict  quality          │   │  IMPROVEMENT_PLAN.md       │
+  │  │    │    │               │   │ checker   sweep            │   │                            │
+  │  ▼    ▼    ▼               │   │             │              │   │  ↻ ralph-loop              │
+  │ ANALYZE                    │   │        sec / qual / perf   │   │    fresh context each      │
+  │ PLAN ──── coordinate       │   │             │              │   │    iteration               │
+  │ IMPLEMENT ── TDD           │   │      validate + commit     │   │                            │
+  │ TEST                       │   │             │              │   │                            │
+  │ COMMIT                     │   │  ↻ ralph-loop              │   │                            │
   │                            │   │                            │   │                            │
-  │  retries: orchestrator     │   │  retries: ralph-loop      │   │  retries: ralph-loop      │
-  │  spawns fresh workers      │   │  fresh context window     │   │  fresh context window     │
+  │ retries: orchestrator      │   │ retries: ralph-loop        │   │ retries: ralph-loop        │
+  │ spawns fresh workers       │   │ fresh context window       │   │ fresh context window       │
   │                            │   │                            │   │                            │
   └────────────────────────────┘   └────────────────────────────┘   └────────────────────────────┘
 
-  Parallelism: agent teams for multi-session coordination, subagents for within-session research & impl
+  Parallelism: agent teams (multi-session), subagents (within-session research & impl)
 ```
 
 ---
